@@ -1,0 +1,7 @@
+/cache
+/oldfiles
+/__pycache__
+/tilescache
+/csv
+pip
+key.py
