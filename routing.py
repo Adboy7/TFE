@@ -10,37 +10,54 @@ from tqdm import tqdm
 import time
 import requests
 import key
+import constant
 import json
 
 
 class Node:
-    def __init__(self,lat,lon,charge):
+    def __init__(self,lat,lon,id,charge):
         self.lat = lat
         self.lon = lon
+        self.id = id
         self.charge = charge
 
-class NodeTab:
+class NodesTab:
     def __init__(self):
         self.tab=[]
-        self.bubbleNum=0
-        self.depotNum=0
+        self.nbrBubbles=0
+        self.nbrDepots=0
 
     def add_bubble(self,node):
-        self.tab.insert(self.bubbleNum, node)
-        self.bubbleNum = self.bubbleNum+1
+        self.tab.insert(self.nbrBubbles, node)
+        self.nbrBubbles = self.nbrBubbles+1
     
     def add_depot(self,node):
         if node.charge == 0:
             self.tab.append(node)
-            self.depotNum = self.depotNum+1
+            self.nbrDepots = self.nbrDepots+1
         else:
             print("Depot node charge should be 0 ")
+
+    def remove_node(self,id):
+        for i in range(len(self.tab)):
+            if self.tab[i].id == id:
+                self.tab.remove(self.tab[i])
+                if( i < self.nbrBubbles):
+                    self.nbrBubbles = self.nbrBubbles-1
+                else:
+                    self.nbrDepots = self.nbrDepots-1
+                break
+
+    def remove_nodes(self,ids):
+        for id in ids:
+            self.remove_node(id)                
+
 
 class SymetricalMatrix:
     
     def __init__(self, size):
         intsize= (int) ((size+1) * size/2)
-        self.symMatrix = np.full(intsize, key.TIMEINF)
+        self.symMatrix = np.full(intsize, constant.TIME_INF)
     
     def get_index(self,i,j):
         row, column = i,j
@@ -68,7 +85,7 @@ def routing_time(startPos,endPos):
         return routingTime #seconds
     else:
         print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
-        return key.TIMEINF
+        return constant.TIME_INF
     
 def routing_distance(startPos,endPos):
     getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary&apikey='+key.APIKEY
@@ -81,18 +98,18 @@ def routing_distance(startPos,endPos):
         print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
         return 0
 
-def get_cost_matrix(bubblesTab):
+def get_cost_matrix(nodesTab):
 
-    size = bubblesTab.bubbleNum + bubblesTab.depotNum
+    size = nodesTab.nbrBubbles + nodesTab.nbrDepots
     cost_matrix = SymetricalMatrix(size)
     n=0
     for i in tqdm(range(size)):
         for j in tqdm(range(n), leave=False):
             #if inter depot route
-            if i in range(size-bubblesTab.depotNum,size) and j in range(size-bubblesTab.depotNum,size):
-                cost=key.TIMEINF
+            if i in range(size-nodesTab.nbrDepots,size) and j in range(size-nodesTab.nbrDepots,size):
+                cost=constant.TIME_INF
             else:
-                cost = routing_time(bubblesTab.tab[i],bubblesTab.tab[j])
+                cost = routing_time(nodesTab.tab[i],nodesTab.tab[j])
             cost_matrix.add_element(i,j,cost)
         n=n+1
     
@@ -109,26 +126,26 @@ def get_cost_matrix_from_csv(csvName):
     return costMatrix
 
 #WARNING RANDOM CHARGE
-def build_bubblesTab_from_csv(csvName):
+def build_nodesTab_from_csv(csvName):
     bubblesLocation=[]
     bubblesLocation = np.genfromtxt(csvName, delimiter=',')
-    bubblesTab= NodeTab()
+    nodesTab= NodesTab()
     i=0
-    for location in bubblesLocation:
+    for bubble in bubblesLocation:
         i=i+1
-        #charge=randint(400,900) #WARNING RANDOM CHARGE
-        charge=780
+        charge=randint(400,900) #WARNING RANDOM CHARGE
+        #charge=700
         #print(charge)
-        bubblesTab.add_bubble(Node(location[0],location[1],charge))
+        nodesTab.add_bubble(Node(bubble[0],bubble[1], int(bubble[2]),charge))
 
     #depot charge = 0
     j=3
     for i in range(1,j+1):
-        bubblesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
-    bubblesTab.bubbleNum=bubblesTab.bubbleNum-j
-    bubblesTab.depotNum=j
+        nodesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
+    nodesTab.nbrBubbles=nodesTab.nbrBubbles-j
+    nodesTab.nbrDepots=j
 
-    return bubblesTab
+    return nodesTab
     
 
 
@@ -198,14 +215,27 @@ def save_location_as_csv():
         np.savetxt('bubbleLocation.csv', location, delimiter=',')
 
 
-# def main():
-   
+def main2():
 
-#     bubblesTab = build_bubblesTab_from_csv('csv/bubbleLocation.csv')
-#     costMatrix=get_cost_matrix(bubblesTab)
-#     save_as_csv_cost_matrix(costMatrix)
-#     #routing_time(liegeBubble.tab[0], liegeBubble.tab[1])
-#     #routing_distance(liegeBubble.tab[0], liegeBubble.tab[1])
-# if __name__ == "__main__":
-#     main()
+    nodesTab= NodesTab()
+    nodesTab.add_bubble(Node(50.640971, 5.574936,0,70))#université20aout 0
+    nodesTab.add_bubble(Node(50.689912, 5.569498,1,80))#maison 1
+    nodesTab.add_bubble(Node(50.690295, 5.246443,2,85))#Warrem 2
+    nodesTab.add_bubble(Node(50.658423, 5.087172,3,65))#Hannut 3
+    nodesTab.add_bubble(Node(50.491995, 5.862504,4,60))#Spa 4
+    nodesTab.add_bubble(Node(50.587739, 5.861940,5,75))#Vervier 5
+    nodesTab.add_bubble(Node(50.426634, 6.190871,6,55))#Butgenbach 6
+    nodesTab.add_bubble(Node(50.412811, 5.935814,7,45))#Stavelot 7
+
+    nodesTab.add_depot(Node(50.419553, 6.117569,8,0))#waimes 8
+    nodesTab.add_depot(Node(50.587781, 5.618887,9,0))#chaudfontaine 9
+
+    nodesTab.remove_nodes([6,7,9])
+
+    for node in nodesTab.tab:
+        print(node.id)
+    print(nodesTab.nbrBubbles,nodesTab.nbrDepots)
+
+if __name__ == "__main__":
+    main2()
     
