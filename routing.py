@@ -40,7 +40,7 @@ class SymetricalMatrix:
     
     def __init__(self, size):
         intsize= (int) ((size+1) * size/2)
-        self.symMatrix = np.zeros(intsize)
+        self.symMatrix = np.full(intsize, key.TIMEINF)
     
     def get_index(self,i,j):
         row, column = i,j
@@ -61,12 +61,14 @@ def routing_time(startPos,endPos):
     getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary&apikey='+key.APIKEY
     response=requests.get(getRequest)
     responseJson=response.json()
+    if not "routes" in responseJson:
+        print(responseJson)
     if responseJson["routes"]:
         routingTime=responseJson["routes"][0]['sections'][0]['summary']['duration']
         return routingTime #seconds
     else:
         print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
-        return 0
+        return key.TIMEINF
     
 def routing_distance(startPos,endPos):
     getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary&apikey='+key.APIKEY
@@ -86,7 +88,11 @@ def get_cost_matrix(bubblesTab):
     n=0
     for i in tqdm(range(size)):
         for j in tqdm(range(n), leave=False):
-            cost = routing_time(bubblesTab.tab[i],bubblesTab.tab[j])
+            #if inter depot route
+            if i in range(size-bubblesTab.depotNum,size) and j in range(size-bubblesTab.depotNum,size):
+                cost=key.TIMEINF
+            else:
+                cost = routing_time(bubblesTab.tab[i],bubblesTab.tab[j])
             cost_matrix.add_element(i,j,cost)
         n=n+1
     
@@ -95,7 +101,7 @@ def get_cost_matrix(bubblesTab):
 
 
 def save_as_csv_cost_matrix(costMatrix):
-    np.savetxt('cost_matrix.csv', costMatrix.symMatrix, delimiter=',')
+    np.savetxt('cost_matrix_2.csv', costMatrix.symMatrix, delimiter=',')
 
 def get_cost_matrix_from_csv(csvName):
     costMatrix=SymetricalMatrix(0)
@@ -110,15 +116,17 @@ def build_bubblesTab_from_csv(csvName):
     i=0
     for location in bubblesLocation:
         i=i+1
-        charge=randint(40,90) #WARNING RANDOM CHARGE
+        #charge=randint(400,900) #WARNING RANDOM CHARGE
+        charge=780
+        #print(charge)
         bubblesTab.add_bubble(Node(location[0],location[1],charge))
 
     #depot charge = 0
-    bubblesTab.tab[-1].charge=0#Gedinne
-    bubblesTab.tab[-2].charge=0#Namur
-    bubblesTab.tab[-3].charge=0#Dinant
-    bubblesTab.bubbleNum=bubblesTab.bubbleNum-3
-    bubblesTab.depotNum=bubblesTab.depotNum+3
+    j=3
+    for i in range(1,j+1):
+        bubblesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
+    bubblesTab.bubbleNum=bubblesTab.bubbleNum-j
+    bubblesTab.depotNum=j
 
     return bubblesTab
     
@@ -191,28 +199,9 @@ def save_location_as_csv():
 
 
 # def main():
+   
 
-#     liegeBubble= NodeTab()
-#     #liegeBubble.add_bubble(Node(50.640971, 5.574936,70))#université20aout
-#     #liegeBubble.add_bubble(Node(50.689912, 5.569498,80))#maison
-#     # liegeBubble.add_bubble(Node(50.690295, 5.246443,85))#Warrem
-#     # liegeBubble.add_bubble(Node(50.658423, 5.087172,65))#Hannut
-#     # liegeBubble.add_bubble(Node(50.491995, 5.862504,60))#Spa
-#     # liegeBubble.add_bubble(Node(50.587739, 5.861940,75))#Vervier
-#     #liegeBubble.add_bubble(Node(50.426634, 6.190871,55))#Butgenbach
-#     #liegeBubble.add_bubble(Node(50.412811, 5.935814,45))#Stavelot
-
-#     # liegeBubble.add_depot(Node(50.419553, 6.117569,0))#waimes
-#     # liegeBubble.add_depot(Node(50.587781, 5.618887,0))#chaudfontaine
-    
-
-#     #liegeBubble.add_bubble(Node(52.5308,13.3847,0))
-#     #liegeBubble.add_bubble(Node(41.8845,-87.6386,0))
-#     # print("N=",liegeBubble.bubbleNum," M=", liegeBubble.depotNum)
-#     # costMatrix=get_cost_matrix_from_csv('cost_matrix.csv')
-#     # print(costMatrix.symMatrix)
-
-#     bubblesTab = build_bubblesTab_from_csv('bubbleLocation.csv')
+#     bubblesTab = build_bubblesTab_from_csv('csv/bubbleLocation.csv')
 #     costMatrix=get_cost_matrix(bubblesTab)
 #     save_as_csv_cost_matrix(costMatrix)
 #     #routing_time(liegeBubble.tab[0], liegeBubble.tab[1])
