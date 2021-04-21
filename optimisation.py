@@ -245,12 +245,14 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                 i
 
     #solve = problem.solve(pulp.GUROBI_CMD())
-    solve = problem.solve(pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT)]))
+    #solve = problem.solve(pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT)]))
+    solver=pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT),("ResultFile", "Gurobi_result_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles)+".json")])
+    solve = problem.solve(solver)
     print(solve)
 
     if solve == 1:
         print('Moving Time:', pulp.value(problem.objective)/60)
-        
+        print(solver)
         edge=[]
         chargeleft=[]
         time=0
@@ -288,7 +290,7 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                 times.append(time)
                 route.append(nodesTab.tab[e[0]].id)
                 routes.append(route)
-
+        
         for i in range(len(routes)):
             print(routes[i])
             print("Total charge: ",charges[i]," Time : ", times[i]/60, " minutes or ",times[i]/(60*60)," hours")
@@ -307,7 +309,10 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
         labels = {n: G.nodes[n]['weight'] for n in G.nodes}
         colors = [G.nodes[n]['weight'] for n in G.nodes]
         nx.draw(G, with_labels=True, labels=labels, node_color=colors)
-        plt.show() # display               
+        #plt.show() # display
+        plt.savefig("Graph_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
+        G.clear
+        return routes,charges,times              
         
 
 
@@ -339,8 +344,9 @@ def main():
     depotFleet=[20,20,20]
     #MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=1000,costMatrix=costMatrix,Q=7000,T=6*60*60depotFleet=[10,10,20])
     #MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=1000,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet)
-    
-    nodesTab.remove_nodes([1,3,5,6,7,10,15,16,17,19,21,22,24,26,28,31,32,33,35,39,40,45,46,50,54])
+    a=[1,2,3,4,5,6,7,10,15,16,17,19,21,22,24,26,28,31,32,33,35,39,40,45,46,50,54]
+    l=list(range(42))
+    nodesTab.remove_nodes(a)
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
     MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
 
