@@ -1,8 +1,8 @@
-from routing import *
+
 import pulp
 import itertools
 import sys
-
+from routing import *
 
 def MDVRP_optimise_fleet(nodesTab,vehicle_count,costMatrix,nbrVehicleInDepot):
     nbrDepots = nodesTab.nbrDepots
@@ -248,11 +248,9 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
     #solve = problem.solve(pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT)]))
     solver=pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT),("ResultFile", "Gurobi_result_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles)+".json")])
     solve = problem.solve(solver)
-    print(solve)
 
     if solve == 1:
         print('Moving Time:', pulp.value(problem.objective)/60)
-        print(solver)
         edge=[]
         chargeleft=[]
         time=0
@@ -265,7 +263,6 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                         chargeleft.append(z[i][j])
                         time=time+costMatrix.get_element(nodesTab.tab[i].id,nodesTab.tab[j].id)+constant.SERVICE_TIME
                         charge=charge+nodesTab.tab[j].charge
-                        print("depot ", d+nbrBubbles," i== ",i," j== ",j," z==", pulp.value(z[i][j]))
             time=0
             charge=0
 
@@ -308,10 +305,12 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
         G.add_edges_from(edge)
         labels = {n: G.nodes[n]['weight'] for n in G.nodes}
         colors = [G.nodes[n]['weight'] for n in G.nodes]
-        nx.draw(G, with_labels=True, labels=labels, node_color=colors)
+        pos=nx.nx_agraph.graphviz_layout(G, prog="neato")
+        nx.draw(G,pos= pos, with_labels=True, labels=labels, node_color=colors)
         #plt.show() # display
         plt.savefig("Graph_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
-        G.clear
+        G.clear()
+        plt.clf()
         return routes,charges,times              
         
 
@@ -334,21 +333,22 @@ def main():
     # costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_old.csv')
     # MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=[10,10])
     
-    nodesTab = build_nodesTab_from_csv('csv/bubbleLocationid.csv')
+    nodesTab = build_nodesTab_from_csv('csv/nodes.csv')
     
     print("bubble get complete")
-    costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_3.csv')
-   
+    costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_final.csv')
+    poly=get_polyline_matrix_from_csv("csv/polyline_matrix_final.csv")
     
     print("costmatrix get complete") 
     depotFleet=[20,20,20]
-    #MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=1000,costMatrix=costMatrix,Q=7000,T=6*60*60depotFleet=[10,10,20])
-    #MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=1000,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet)
-    a=[1,2,3,4,5,6,7,10,15,16,17,19,21,22,24,26,28,31,32,33,35,39,40,45,46,50,54]
-    l=list(range(42))
-    nodesTab.remove_nodes(a)
+    l=list(range(32))
+    nodesTab.remove_nodes(l)
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
-    MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+
+    routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+
+    routes=build_routes_with_polylines(routesPoints,poly)
+    build_and_save_GeoJson(routes,routesPoints,nodesTab,'test2.geojson')
 
     
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 from optimisation import *
 import os
 
-def save_result(routes,charges,times,D,B,bubbles=None):
+def save_result(routes,charges,times,D,B,bubblesOrDepots=None):
  
     f =open("Result_D"+str(D)+"_B"+str(B), "a+")
     f.write("Number of truck is "+str(len(routes))+"\n")
-    if(bubbles):
-        f.write("Bubbles selected : "+str(bubbles)+"\n")
+    if(bubblesOrDepots):
+        f.write("Bubbles/Depots selected : "+str(bubblesOrDepots)+"\n")
     for i in range(len(routes)):
         f.write(str(routes[i])+"\n")
         f.write("Total charge: "+str(charges[i])+" Time : " +str(times[i]/60)+ " minutes or "+ str(times[i]/(60*60))+" hours\n")
@@ -34,6 +34,26 @@ def bubbles_number_test(nodesTab,costMatrix):
         routes, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
         save_result(routes,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,bubbles)
 
+def depots_number_test(nodesTab,costMatrix):
+    print("Begin Test with different number of depots")
+    depots=list(range(nodesTab.nbrBubbles,nodesTab.nbrBubbles+nodesTab.nbrDepots))
+    depotsToRemove = []
+    depotToRemove = -1
+    routes = []
+    charges = []
+    times = []
+    depotFleet=[20,20,20]
+    for i in range(3):
+        depotsToRemove=[]
+        if i != 0:
+            depotToRemove=choice(depots)
+            depotsToRemove.append(depotToRemove)
+            depots.remove(depotToRemove)
+        nodesTab.remove_nodes(depotsToRemove)
+
+        print("Compute with "+str(nodesTab.nbrDepots)+" Depots")
+        routes, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+        save_result(routes,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,depots)
 
 
 
@@ -47,7 +67,8 @@ def main3():
     
     print("costmatrix get complete")
 
-    bubbles_number_test(nodesTab,costMatrix)
+    #bubbles_number_test(nodesTab,costMatrix)
+    depots_number_test(nodesTab,costMatrix)
 
 if __name__ == "__main__":
     main3()

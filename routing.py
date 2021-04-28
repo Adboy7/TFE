@@ -13,14 +13,16 @@ import requests
 import key
 import constant
 import json
-
-
+import csv
+import geojson as gjson
 class Node:
-    def __init__(self,lat,lon,id,charge):
+    def __init__(self,lat,lon,id,deviceId,charge):
         self.lat = lat
         self.lon = lon
         self.id = id
+        self.deviceId = deviceId
         self.charge = charge
+
 
 class NodesTab:
     def __init__(self):
@@ -56,13 +58,10 @@ class NodesTab:
 
 class SymetricalMatrix:
     
-    def __init__(self, size, stype):
+    def __init__(self, size):
         intsize= (int) ((size+1) * size/2)
-        if stype == "cost" :
-            self.symMatrix = np.full(intsize, constant.TIME_INF)
-        elif stype == "polyline":
-            
-            self.symMatrix = ["None"]*intsize
+        #self.symMatrix = np.full(intsize, constant.TIME_INF)
+        self.symMatrix = [constant.TIME_INF]*intsize
             
     
     def get_index(self,i,j):
@@ -81,18 +80,30 @@ class SymetricalMatrix:
         return self.symMatrix[index]
 
 def routing_time(startPos,endPos):
-    getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary,polyline&apikey='+key.APIKEY
+    getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary&apikey='+key.APIKEY
     response=requests.get(getRequest)
     responseJson=response.json()
     if not "routes" in responseJson:
         print(responseJson)
     if responseJson["routes"]:
         routingTime=responseJson["routes"][0]['sections'][0]['summary']['duration']
-        polyline=responseJson["routes"][0]['sections'][0]['polyline']
-        return routingTime,polyline #seconds
+        return routingTime #seconds
     else:
         print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
-        return constant.TIME_INF,0
+        return constant.TIME_INF
+
+def polyline(startPos,endPos):
+    getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=polyline&apikey='+key.APIKEY
+    response=requests.get(getRequest)
+    responseJson=response.json()
+    if not "routes" in responseJson:
+        print(responseJson)
+    if responseJson["routes"]:
+        polyline=responseJson["routes"][0]['sections'][0]['polyline']
+        return polyline
+    else:
+        print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
+        return "None"
     
 def routing_distance(startPos,endPos):
     getRequest='https://router.hereapi.com/v8/routes?transportMode=car&origin='+str(startPos.lat)+','+str(startPos.lon)+'&destination='+str(endPos.lat)+','+str(endPos.lon)+'&return=summary&apikey='+key.APIKEY
@@ -100,72 +111,166 @@ def routing_distance(startPos,endPos):
     responseJson=response.json()
     if responseJson["routes"]:
         routingDistance=responseJson["routes"][0]['sections'][0]['summary']['length']
-        polyline=responseJson["routes"][0]['sections'][0]['polyline']
-        return routingDistance,polyline
+        return routingDistance
     else:
         print("No route found: "+startPos.lat+' '+startPos.lon+' to '+endPos.lat+' '+endPos.lon)
-        return 0,0
+        return 0
 
-def get_cost__and_polyline_matrix(nodesTab):
+def get_cost_matrix(nodesTab):
 
     size = nodesTab.nbrBubbles + nodesTab.nbrDepots
-    costMatrix = SymetricalMatrix(size,"cost")
-    polylineMatrix = SymetricalMatrix(size,"polyline")
-    
-
+    costMatrix = SymetricalMatrix(size)
 
     n=0
     for i in tqdm(range(size)):
         for j in tqdm(range(n), leave=False):
             #if inter depot route
             if i in range(size-nodesTab.nbrDepots,size) and j in range(size-nodesTab.nbrDepots,size):
-                cost,polyline=constant.TIME_INF, "None"
+                cost = constant.TIME_INF
             else:
-                cost,polyline = routing_time(nodesTab.tab[i],nodesTab.tab[j])
+                cost = routing_time(nodesTab.tab[i],nodesTab.tab[j])
             costMatrix.add_element(i,j,cost)
-            polylineMatrix.add_element(i,j,polyline)
         n=n+1
     
-    return costMatrix,polylineMatrix
+    return costMatrix
 
-def save_as_csv_polyline_matrix(polylineMatrix):
-    np.savetxt('polyline_matrix_3D.csv', polylineMatrix.symMatrix, delimiter=',',fmt='%s')
+def get_polyline_matrix(nodesTab):
+    size = nodesTab.nbrBubbles + nodesTab.nbrDepots
+    polylineMatrix = []
+    poly=0
+    for i in range(size):
+        polylineMatrix.append(["None"]*size)
+    for i in tqdm(range(size)):
+        for j in tqdm(range(size), leave=False):
+            if i != j:
+                poly=polyline(nodesTab.tab[i],nodesTab.tab[j])
+                polylineMatrix[i][j]=poly
 
-def save_as_csv_cost_matrix(costMatrix):
-    np.savetxt('cost_matrix_3D.csv', costMatrix.symMatrix, delimiter=',')
+    return polylineMatrix
+
+    
+
+def save_polyline_matrix_as_csv(matrix,fileName):
+    with open(fileName, mode='w') as myFile:
+        csv_writer = csv.writer(myFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerows(matrix)
+
+def save_cost_matrix_as_csv(matrix,fileName):
+    with open(fileName, mode='w') as myFile:
+        csv_writer = csv.writer(myFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for cost in matrix.symMatrix:
+            csv_writer.writerow([cost])
+
+def get_and_save_cost_polyline_matrix_as_csv(nodesTab, costFileName, polyFileName):
+    costMatrix=get_cost_matrix(nodesTab)
+    save_cost_matrix_as_csv(costMatrix, costFileName)
+
+    polyMatrix = get_polyline_matrix(nodesTab)
+    save_polyline_matrix_as_csv(polyMatrix, polyFileName)
 
 def get_cost_matrix_from_csv(csvName):
-    costMatrix=SymetricalMatrix(0,"cost")
+    costMatrix=SymetricalMatrix(0)
     costMatrix.symMatrix = np.genfromtxt(csvName, delimiter=',')
     return costMatrix
 
+def get_polyline_matrix_from_csv(csvName):
+    polylineMatrix = []
+    with open(csvName) as csvfile:
+      reader=csv.reader(csvfile, delimiter=",")
+      polylineMatrix=list(reader)
+      return polylineMatrix
+
 #WARNING RANDOM CHARGE
-def build_nodesTab_from_csv(csvName):
-    bubblesLocation=[]
-    bubblesLocation = np.genfromtxt(csvName, delimiter=',')
-    nodesTab= NodesTab()
-    i=0
-    for bubble in bubblesLocation:
+def build_nodesTab_from_csv(csvName,random=None):
+    nodesLocation=[]
+    with open(csvName, newline='') as myFile:
+        nodesLocation = csv.reader(myFile)
+        nodesTab= NodesTab()
+        i=0
+        for node in nodesLocation:
+            
+            if random:
+                charge=randint(500,1000) #WARNING RANDOM CHARGE
+                #charge=700
+
+            else:
+                charge=int(node[4])
+
+            nodesTab.add_bubble(Node(lat=float(node[0]),lon=float(node[1]), id=int(node[2]) ,deviceId = node[3].split(',') ,charge = charge))
+
+        #depot charge = 0
+        j=3
+        for i in range(1,j+1):
+            nodesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
+        nodesTab.nbrBubbles=nodesTab.nbrBubbles-j
+        nodesTab.nbrDepots=j
+
+        return nodesTab
+    
+def test_dist(costMatrix):
+    n=0
+    num=0
+    for i in range(54):   
+        for j in range(n):
+            if costMatrix.get_element(i,j) < 300:
+                print(i,j)
+                num=num+1
+
+        n=n+1
+    print(num)
+
+
+def build_routes_with_polylines(routesNodesIds,polylineMatrix):
+    newRoutes=[]
+    newRoute=[]
+
+    for route in routesNodesIds:
+        for i in range(len(route)-1):
+            newRoute.append(fp.decode(polylineMatrix[route[i]][route[i+1]]))
+
+        newRoutes.append(newRoute)
+
+    return(newRoutes)
+
+def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
+    flipLocationsRoutes=[]
+    flipLocationSegments=[]
+    routesNodesLocation=[]
+    routeNodesLocation=[]
+    i=1
+
+    for segments in routes:
+        for segment in segments:
+            flipLocationSegments.append([(sub[1], sub[0]) for sub in segment])
+        flipLocationsRoutes.append(flipLocationSegments)
+        flipLocationSegments=[]
+    
+    features=[]
+    for flipLocations in flipLocationsRoutes:
+        flipLocations=gjson.MultiLineString(flipLocations)
+        features.append(gjson.Feature(geometry=flipLocations))
+        geoJson=gjson.FeatureCollection(features)
+        with open(fileName+str(i)+".geojson", 'w') as f:
+            gjson.dump(geoJson, f)
         i=i+1
-        charge=randint(400,900) #WARNING RANDOM CHARGE
-        #charge=700
-        #print(charge)
-        nodesTab.add_bubble(Node(bubble[0],bubble[1], int(bubble[2]),charge))
-
-    #depot charge = 0
-    j=3
-    for i in range(1,j+1):
-        nodesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
-    nodesTab.nbrBubbles=nodesTab.nbrBubbles-j
-    nodesTab.nbrDepots=j
-
-    return nodesTab
+        features=[]
     
-
-
+    for route in routesNodesIds:
+        for nodeId in route:
+            for i in range(len(nodesTab.tab)):
+                if nodesTab.tab[i].id == nodeId:
+                    index = i
+            routeNodesLocation.append((nodesTab.tab[index].lon,nodesTab.tab[index].lat))
+        routesNodesLocation.append(routeNodesLocation)
+        routeNodesLocation=[]
     
+    for nodesLocation in routesNodesLocation:
+        geojsonPoints=gjson.MultiPoint(nodesLocation)
+        features.append(gjson.Feature(geometry=geojsonPoints))
 
-
+    geoJson=gjson.FeatureCollection(features)
+    with open(fileName+"_points.geojson", 'w') as f:
+        gjson.dump(geoJson, f)
 #Old or few use
 
 def update_routing_old():
@@ -219,30 +324,64 @@ def routing_time_old(startPos,endPos):
     return routing_time 
 
 def save_location_as_csv():
-    test = pd.read_csv("csv/location.csv")
-    test=test.values
+    test1 = pd.read_csv("csv/data_new.csv")
+    test=test1.values
     location=[]
-    nbr=[0] * 54
-    for i in range(len(test)):
-        res = tuple(map(float, test[i][0].split(',')))
-        if not(res in location):
-            location.append(res)
-        else:
-            nbr[location.index(res)]+=1
+    idk=[]
+    idDouble=[]
+    nbr=0
+    for i in range(len(test1['deviceId'])):
+        if not(test1['deviceId'][i] in idk) and not(test1['deviceId'][i] in idDouble):
+            res = tuple(map(float, test1['location'][i].split(',')))
+            if not(res in location):
+                idk.append(test1['deviceId'][i])
+                idDouble.append(test1['deviceId'][i])
+                nbr=nbr+1
+                location.append(res)
+            else:
+                index=location.index(res)
+                idk[index] = idk[index] + "," + test1['deviceId'][i]
+                idDouble.append(test1['deviceId'][i])
+                nbr=nbr+1
+        print(nbr)
 
-    for i in range(len(location)):
-        print(i,location[i],nbr[i])
-    #np.savetxt('bubbleLocation.csv', location, delimiter=',')
+    
+        
+    numId=range(len(location))
+    lat=[]
+    lon=[]
+    for pos in location:
+        lat.append(pos[0])
+        lon.append(pos[1])
+    csvFile=zip(lat,lon,numId,idk)
+    with open('loc.csv', mode='w') as myFile:
+        csv_writer = csv.writer(myFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerows(csvFile)
+    
+
 
 
 def main2():
+    nodes=build_nodesTab_from_csv('csv/nodes.csv')
+    # get_and_save_cost_polyline_matrix_as_csv(nodes, 'cost_matrix_final.csv', 'polyline_matrix_final.csv')
+    poly=get_polyline_matrix_from_csv("csv/polyline_matrix_final.csv")
+    a=fp.decode(poly[0][1])
+    c=[]
+    b=[1,2,3,1]
+    c.append(b)
+    newc=build_routes_with_polylines(c,poly)
+    build_and_save_GeoJson(newc,c,nodes,'test')
+
+    
+
+
     #save_location_as_csv()
 
-    nodesTab = build_nodesTab_from_csv('csv/bubbleLocationid.csv')
+    # nodesTab = build_nodesTab_from_csv('csv/bubbleLocationid.csv')
 
-    cost,poly = get_cost__and_polyline_matrix(nodesTab)
-    save_as_csv_cost_matrix(cost)
-    save_as_csv_polyline_matrix(poly)
+    # cost,poly = get_cost__and_polyline_matrix(nodesTab)
+    # save_as_csv_cost_matrix(cost)
+    # save_as_csv_polyline_matrix(poly)
     
     # nodesTab= NodesTab()
     # nodesTab.add_bubble(Node(50.640971, 5.574936,0,70))#université20aout 0
@@ -267,6 +406,14 @@ def main2():
     # for node in nodesTab.tab:
     #     print(node.id)
     # print(nodesTab.nbrBubbles,nodesTab.nbrDepots)
+
+    # nodesTab = build_nodesTab_from_csv('csv/nodes.csv')
+    # for node in nodesTab.tab:
+    #     if node.lon == 50.1236:
+    #         print(node.id)
+   
+        
+    #test_dist(a)
 
 if __name__ == "__main__":
     main2()
