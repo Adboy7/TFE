@@ -225,10 +225,15 @@ def build_routes_with_polylines(routesNodesIds,polylineMatrix):
     newRoute=[]
 
     for route in routesNodesIds:
+
         for i in range(len(route)-1):
             newRoute.append(fp.decode(polylineMatrix[route[i]][route[i+1]]))
 
         newRoutes.append(newRoute)
+        newRoute=[]
+
+    if(newRoutes[0]==newRoutes[1]):
+        print("ok")
 
     return(newRoutes)
 
@@ -244,9 +249,13 @@ def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
             flipLocationSegments.append([(sub[1], sub[0]) for sub in segment])
         flipLocationsRoutes.append(flipLocationSegments)
         flipLocationSegments=[]
+
+    if(routes[0]==routes[1]):
+        print("ops")
     
     features=[]
     for flipLocations in flipLocationsRoutes:
+        
         flipLocations=gjson.MultiLineString(flipLocations)
         features.append(gjson.Feature(geometry=flipLocations))
         geoJson=gjson.FeatureCollection(features)
@@ -415,6 +424,6 @@ def main2():
         
     #test_dist(a)
 
-if __name__ == "__main__":
-    main2()
+# if __name__ == "__main__":
+#     main2()
     

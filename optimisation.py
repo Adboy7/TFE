@@ -348,7 +348,7 @@ def main():
     routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
 
     routes=build_routes_with_polylines(routesPoints,poly)
-    build_and_save_GeoJson(routes,routesPoints,nodesTab,'test2.geojson')
+    build_and_save_GeoJson(routes,routesPoints,nodesTab,'test')
 
     
 if __name__ == "__main__":
