@@ -252,19 +252,12 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
     if solve == 1:
         print('Moving Time:', pulp.value(problem.objective)/60)
         edge=[]
-        chargeleft=[]
-        time=0
-        charge=0
         for d in range(nbrDepots):
             for i in range(nbrNodes):
                 for j in range(nbrNodes):
                     if i != j and pulp.value(x[i][j][d]) == 1:
                         edge.append((i,j))
-                        chargeleft.append(z[i][j])
-                        time=time+costMatrix.get_element(nodesTab.tab[i].id,nodesTab.tab[j].id)+constant.SERVICE_TIME
-                        charge=charge+nodesTab.tab[j].charge
-            time=0
-            charge=0
+                        
 
         routes=[]
         charges=[]
@@ -276,12 +269,13 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                 j=e[1]
                 route.append(nodesTab.tab[e[0]].id)
                 charges.append(pulp.value(z[e[0]][e[1]]))
-                time+= costMatrix.get_element(e[0],e[1]) + constant.SERVICE_TIME
+                time+= costMatrix.get_element(nodesTab.tab[e[0]].id,nodesTab.tab[e[1]].id)+ constant.SERVICE_TIME
                 while(j != e[0]):
                     route.append(nodesTab.tab[j].id)
                     for e2 in edge:
                         if e2[0] == j:
-                            time+= costMatrix.get_element(j,e2[1]) + constant.SERVICE_TIME
+                            time+= costMatrix.get_element(nodesTab.tab[j].id,nodesTab.tab[e2[1]].id) + constant.SERVICE_TIME
+
                             j=e2[1]
                             break
                 times.append(time)
@@ -315,7 +309,7 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
         
 
 
-def main():
+def main4():
     # nodesTab= NodesTab()
     # nodesTab.add_bubble(Node(50.640971, 5.574936,0,70))#université20aout 0
     # nodesTab.add_bubble(Node(50.689912, 5.569498,1,80))#maison 1
@@ -345,9 +339,9 @@ def main():
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
     routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
 
-    #routes=build_routes_with_polylines(routesPoints,poly)
-    #build_and_save_GeoJson(routes,routesPoints,nodesTab,'test')
+    routes=build_routes_with_polylines(routesPoints,poly)
+    build_and_save_GeoJson(routes,routesPoints,nodesTab,'a')
 
     
 if __name__ == "__main__":
-    main()
+    main4()

@@ -232,8 +232,6 @@ def build_routes_with_polylines(routesNodesIds,polylineMatrix):
         newRoutes.append(newRoute)
         newRoute=[]
 
-    if(newRoutes[0]==newRoutes[1]):
-        print("ok")
 
     return(newRoutes)
 
@@ -249,9 +247,6 @@ def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
             flipLocationSegments.append([(sub[1], sub[0]) for sub in segment])
         flipLocationsRoutes.append(flipLocationSegments)
         flipLocationSegments=[]
-
-    if(routes[0]==routes[1]):
-        print("ops")
     
     features=[]
     for flipLocations in flipLocationsRoutes:
@@ -272,13 +267,27 @@ def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
             routeNodesLocation.append((nodesTab.tab[index].lon,nodesTab.tab[index].lat))
         routesNodesLocation.append(routeNodesLocation)
         routeNodesLocation=[]
-    
+
+    depot=[]
     for nodesLocation in routesNodesLocation:
+        if(nodesLocation[0] not in depot):
+            depot.append(nodesLocation.pop(0))
+            nodesLocation.pop(-1)
+        else:
+            nodesLocation.pop(-1)
+            nodesLocation.pop(0)
         geojsonPoints=gjson.MultiPoint(nodesLocation)
         features.append(gjson.Feature(geometry=geojsonPoints))
 
     geoJson=gjson.FeatureCollection(features)
     with open(fileName+"_points.geojson", 'w') as f:
+        gjson.dump(geoJson, f)
+
+    features=[]
+    depotGeojsonPoints=gjson.MultiPoint(depot)
+    features.append(gjson.Feature(geometry=depotGeojsonPoints))
+    geoJson=gjson.FeatureCollection(features)
+    with open(fileName+"_depot.geojson", 'w') as f:
         gjson.dump(geoJson, f)
 #Old or few use
 
