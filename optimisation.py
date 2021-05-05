@@ -341,14 +341,12 @@ def main():
     
     print("costmatrix get complete") 
     depotFleet=[20,20,20]
-    l=list(range(32))
-    nodesTab.remove_nodes(l)
+   
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
-
     routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
 
-    routes=build_routes_with_polylines(routesPoints,poly)
-    build_and_save_GeoJson(routes,routesPoints,nodesTab,'test')
+    #routes=build_routes_with_polylines(routesPoints,poly)
+    #build_and_save_GeoJson(routes,routesPoints,nodesTab,'test')
 
     
 if __name__ == "__main__":
