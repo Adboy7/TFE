@@ -12,7 +12,7 @@ def save_result(routes,charges,times,D,B,bubblesOrDepots=None):
         f.write("Total charge: "+str(charges[i])+" Time : " +str(times[i]/60)+ " minutes or "+ str(times[i]/(60*60))+" hours\n")
 
 
-def bubbles_number_test(nodesTab,costMatrix):
+def bubbles_number_test(nodesTab,costMatrix,poly):
     print("Begin test with different number of bubbles")
     bubbles=list(range(nodesTab.nbrBubbles))
     bubblesToRemove = []
@@ -31,10 +31,13 @@ def bubbles_number_test(nodesTab,costMatrix):
 
         nodesTab.remove_nodes(bubblesToRemove)
         print("Compute with "+str(nodesTab.nbrBubbles)+" bubbles")
-        routes, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
-        save_result(routes,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,bubbles)
+        routesPoints, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+        save_result(routesPoints,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,bubbles)
+        
+        routes=build_routes_with_polylines(routesPoints,poly)
+        build_and_save_GeoJson(routes,routesPoints,nodesTab,'geo_D'+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
 
-def depots_number_test(nodesTab,costMatrix):
+def depots_number_test(nodesTab,costMatrix,poly):
     print("Begin Test with different number of depots")
     depots=list(range(nodesTab.nbrBubbles,nodesTab.nbrBubbles+nodesTab.nbrDepots))
     depotsToRemove = []
@@ -52,23 +55,26 @@ def depots_number_test(nodesTab,costMatrix):
         nodesTab.remove_nodes(depotsToRemove)
 
         print("Compute with "+str(nodesTab.nbrDepots)+" Depots")
-        routes, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
-        save_result(routes,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,depots)
+        routesPoints, charges, times = MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+        save_result(routesPoints,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,depots)
+
+        routes=build_routes_with_polylines(routesPoints,poly)
+        build_and_save_GeoJson(routes,routesPoints,nodesTab,'geo_D'+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
 
 
 
 def main3():
     
-    nodesTab = build_nodesTab_from_csv('csv/bubbleLocationid.csv')
+    nodesTab = build_nodesTab_from_csv('csv/nodes.csv')
     
     print("bubble get complete")
-    costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_3D.csv')
-   
+    costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_final.csv')
+    poly=get_polyline_matrix_from_csv("csv/polyline_matrix_final.csv")
     
     print("costmatrix get complete")
 
     #bubbles_number_test(nodesTab,costMatrix)
-    depots_number_test(nodesTab,costMatrix)
+    depots_number_test(nodesTab,costMatrix,poly)
 
 if __name__ == "__main__":
     main3()

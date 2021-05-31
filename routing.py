@@ -269,6 +269,7 @@ def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
         routeNodesLocation=[]
 
     depot=[]
+    i=1
     for nodesLocation in routesNodesLocation:
         if(nodesLocation[0] not in depot):
             depot.append(nodesLocation.pop(0))
@@ -276,6 +277,16 @@ def build_and_save_GeoJson(routes,routesNodesIds,nodesTab,fileName):
         else:
             nodesLocation.pop(-1)
             nodesLocation.pop(0)
+        
+        index=1
+        with open(fileName+"_route_"+str(i)+"_points.csv", mode='w') as myFile:
+            csv_writer = csv.writer(myFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                
+            csv_writer.writerow(["lon","lat","id"])
+            for node in nodesLocation:
+                csv_writer.writerow([node[0],node[1],routesNodesIds[i-1][index]])
+                index=index+1
+        i=i+1
         geojsonPoints=gjson.MultiPoint(nodesLocation)
         features.append(gjson.Feature(geometry=geojsonPoints))
 
@@ -381,14 +392,9 @@ def save_location_as_csv():
 
 def main2():
     nodes=build_nodesTab_from_csv('csv/nodes.csv')
-    # get_and_save_cost_polyline_matrix_as_csv(nodes, 'cost_matrix_final.csv', 'polyline_matrix_final.csv')
-    poly=get_polyline_matrix_from_csv("csv/polyline_matrix_final.csv")
-    a=fp.decode(poly[0][1])
-    c=[]
-    b=[1,2,3,1]
-    c.append(b)
-    newc=build_routes_with_polylines(c,poly)
-    build_and_save_GeoJson(newc,c,nodes,'test')
+
+    get_and_save_cost_polyline_matrix_as_csv(nodes, 'cost_matrix_final.csv', 'polyline_matrix_final.csv')
+    
 
     
 
@@ -433,6 +439,6 @@ def main2():
         
     #test_dist(a)
 
-# if __name__ == "__main__":
-#     main2()
+if __name__ == "__main__":
+    main2()
     

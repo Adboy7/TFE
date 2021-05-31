@@ -10,7 +10,6 @@ def MDVRP_optimise_fleet(nodesTab,vehicle_count,costMatrix,nbrVehicleInDepot):
     nbrNodes = nbrDepots + nbrBubbles
 
     for vehicle_count in range(1,vehicle_count+1):
-        nbrNodes = nbrBubbles+nbrDepots
         
         problem = pulp.LpProblem("MDVRP",pulp.LpMinimize)
         x = [[[pulp.LpVariable("x%s_%s,%s"%(i,j,k), cat="Binary")
@@ -87,39 +86,70 @@ def MDVRP_optimise_fleet(nodesTab,vehicle_count,costMatrix,nbrVehicleInDepot):
         #     problem += pulp.lpSum(x[i][j][k] if i !=j else 0 for i, j in itertools.permutations(s,2) for k in range(vehicle_count)) <= len(s) - 1
         
         print("solving for "+ str(vehicle_count))
-        solve = problem.solve(pulp.GUROBI_CMD(options=[("TimeLimit", 10)]))
+        solver=pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT),("ResultFile", "Gurobi_result_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles)+".json")])
+        solve = problem.solve(solver)
        
         if solve == 1:
             print(vehicle_count)
-            # print('Vehicle Requirements:', vehicle_count)
-            # print('Moving Time:', pulp.value(problem.objective)/60)
+            print('Moving Time:', pulp.value(problem.objective)/60)
+            edge=[]
+            for d in range(vehicle_count):
+                for i in range(nbrNodes):
+                    for j in range(nbrNodes):
+                        if i != j and pulp.value(x[i][j][d]) == 1:
+                            edge.append((i,j))
+            for e in edge:
+                print(e)
+            routes=[]
+            charges=[]
+            times=[]
+            for e in edge:
+                if e[0] in range(nbrBubbles, nbrNodes):
+                    route=[]
+                    time=0
+                    ca=0 
+                    j=e[1]
+                    route.append(nodesTab.tab[e[0]].id)
+                    ca=nodesTab.tab[e[1]].charge
+                    time+= costMatrix.get_element(nodesTab.tab[e[0]].id,nodesTab.tab[e[1]].id)+ constant.SERVICE_TIME
+                    while(j != e[0]):
+                        route.append(nodesTab.tab[j].id)
+                        for e2 in edge:
+                            if e2[0] == j:
+                                time+= costMatrix.get_element(nodesTab.tab[j].id,nodesTab.tab[e2[1]].id) + constant.SERVICE_TIME
+                                ca+=nodesTab.tab[e2[1]].charge
+                                j=e2[1]
+                                break
+                    times.append(time)
+                    charges.append(ca)
+                    route.append(nodesTab.tab[e[0]].id)
+                    routes.append(route)
             
-            # edge=[]
-            # time=0
-            # charge=0
-            # for k in range(vehicle_count):
-            #     for i in range(nbrNodes):
-            #         for j in range(nbrNodes):
-            #             if i != j and pulp.value(x[i][j][k]) == 1:
-            #                 edge.append((i,j))
-            #                 time=time+costMatrix.get_element(nodesTab.tab[i].id,nodesTab.tab[j].id)+constant.SERVICE_TIME
-            #                 charge=charge+nodesTab.tab[j].charge
-            #     print("Truck ", k, " will take ", time/60," minutes and will take ",charge," kg")
-            #     time=0
-            #     charge=0
+            for i in range(len(routes)):
+                print(routes[i])
+                print("Total charge: ",charges[i]," Time : ", times[i]/60, " minutes or ",times[i]/(60*60)," hours")
+                print("----")
 
-            # np.savetxt('edge.csv', edge, delimiter=',')
-            # G = nx.Graph()
+            G = nx.Graph()
+        
+            for node in range(nbrNodes):
+                G.add_node(node, weight=nodesTab.tab[node].id )
+
+            G.add_edges_from(edge)
+            labels = {n: G.nodes[n]['weight'] for n in G.nodes}
+            colors = [G.nodes[n]['weight'] for n in G.nodes]
+            pos=nx.nx_agraph.graphviz_layout(G, prog="neato")
+            nx.draw(G,pos= pos, with_labels=True, labels=labels, node_color=colors)
+            #plt.show() # display
+            plt.savefig("Graph_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
+            G.clear()
+            plt.clf()
+
             
-            # for node in range(nbrNodes):
-            #     G.add_node(node, weight= node)
-
-            # G.add_edges_from(edge)
-            # labels = {n: G.nodes[n]['weight'] for n in G.nodes}
-            # colors = [G.nodes[n]['weight'] for n in G.nodes]
-            # nx.draw(G, with_labels=True, labels=labels, node_color=colors)
-            # plt.show() # display               
-            # break
+            
+            return routes,charges,times 
+            
+           
 
 
 def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
@@ -240,12 +270,15 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                                                                             for i in range(nbrBubbles)
                                                                             for d in range(nbrDepots)) 
         
-        for d in range(nbrDepots):
-            for i in range(nbrBubbles):
-                i
+        
 
     #solve = problem.solve(pulp.GUROBI_CMD())
     #solve = problem.solve(pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT)]))
+
+    #solve=problem.solve(pulp.COIN_CMD(timeLimit=60))
+
+    #solve=problem.solve(pulp.GLPK_CMD(options=["--tmlim", "60",]))
+
     solver=pulp.GUROBI_CMD(options=[("MIPFocus", 1),("TimeLimit", constant.GUROBI_TIME_LIMIT),("ResultFile", "Gurobi_result_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles)+".json")])
     solve = problem.solve(solver)
 
@@ -325,7 +358,7 @@ def main4():
     
     
     # costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_old.csv')
-    # MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=[10,10])
+   
     
     nodesTab = build_nodesTab_from_csv('csv/nodes.csv')
     
@@ -334,13 +367,13 @@ def main4():
     poly=get_polyline_matrix_from_csv("csv/polyline_matrix_final.csv")
     
     print("costmatrix get complete") 
-    depotFleet=[20,20,20]
-   
+    depotFleet=[3,3,3]
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
-    routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+    #routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+    routesPoints,a,b=MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=20,costMatrix=costMatrix,nbrVehicleInDepot=[3,3,3])
 
     routes=build_routes_with_polylines(routesPoints,poly)
-    build_and_save_GeoJson(routes,routesPoints,nodesTab,'a')
+    build_and_save_GeoJson(routes,routesPoints,nodesTab,'F1_Form')
 
     
 if __name__ == "__main__":
