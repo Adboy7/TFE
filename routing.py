@@ -122,12 +122,14 @@ def get_cost_matrix(nodesTab):
     costMatrix = SymetricalMatrix(size)
 
     n=0
+    
     for i in tqdm(range(size)):
         for j in tqdm(range(n), leave=False):
             #if inter depot route
             if i in range(size-nodesTab.nbrDepots,size) and j in range(size-nodesTab.nbrDepots,size):
                 cost = constant.TIME_INF
             else:
+                time.sleep(0.2)
                 cost = routing_time(nodesTab.tab[i],nodesTab.tab[j])
             costMatrix.add_element(i,j,cost)
         n=n+1
@@ -143,6 +145,7 @@ def get_polyline_matrix(nodesTab):
     for i in tqdm(range(size)):
         for j in tqdm(range(size), leave=False):
             if i != j:
+                time.sleep(0.2)
                 poly=polyline(nodesTab.tab[i],nodesTab.tab[j])
                 polylineMatrix[i][j]=poly
 
@@ -162,8 +165,8 @@ def save_cost_matrix_as_csv(matrix,fileName):
             csv_writer.writerow([cost])
 
 def get_and_save_cost_polyline_matrix_as_csv(nodesTab, costFileName, polyFileName):
-    costMatrix=get_cost_matrix(nodesTab)
-    save_cost_matrix_as_csv(costMatrix, costFileName)
+    #costMatrix=get_cost_matrix(nodesTab)
+    #save_cost_matrix_as_csv(costMatrix, costFileName)
 
     polyMatrix = get_polyline_matrix(nodesTab)
     save_polyline_matrix_as_csv(polyMatrix, polyFileName)
@@ -180,13 +183,14 @@ def get_polyline_matrix_from_csv(csvName):
       polylineMatrix=list(reader)
       return polylineMatrix
 
-#WARNING RANDOM CHARGE
+#WARNING RANDOM CHARGE AND J TO CHANGE FOR THE NUMBER OF DEPOT
 def build_nodesTab_from_csv(csvName,random=None):
     nodesLocation=[]
     with open(csvName, newline='') as myFile:
         nodesLocation = csv.reader(myFile)
         nodesTab= NodesTab()
         i=0
+        j=0
         for node in nodesLocation:
             
             if random:
@@ -195,11 +199,11 @@ def build_nodesTab_from_csv(csvName,random=None):
 
             else:
                 charge=int(node[4])
-
+            if node[3]=="None":
+                j=j+1
             nodesTab.add_bubble(Node(lat=float(node[0]),lon=float(node[1]), id=int(node[2]) ,deviceId = node[3].split(',') ,charge = charge))
 
         #depot charge = 0
-        j=3
         for i in range(1,j+1):
             nodesTab.tab[-i].charge=0#Gedinne,Namur,Dinant
         nodesTab.nbrBubbles=nodesTab.nbrBubbles-j
@@ -391,14 +395,13 @@ def save_location_as_csv():
 
 
 def main2():
-    nodes=build_nodesTab_from_csv('csv/nodes.csv')
-
-    get_and_save_cost_polyline_matrix_as_csv(nodes, 'cost_matrix_final.csv', 'polyline_matrix_final.csv')
+    nodes=build_nodesTab_from_csv('csv/nodes10D106B.csv')
+    print(nodes.nbrBubbles, nodes.nbrDepots)
+    get_and_save_cost_polyline_matrix_as_csv(nodes, 'cost_matrix_final10D106B.csv', 'polyline_matrix_final10D106B.csv')
     
 
     
-
-
+   
     #save_location_as_csv()
 
     # nodesTab = build_nodesTab_from_csv('csv/bubbleLocationid.csv')

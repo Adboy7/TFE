@@ -20,7 +20,7 @@ def bubbles_number_test(nodesTab,costMatrix,poly):
     routes = []
     charges = []
     times = []
-    depotFleet=[20,20,20]
+    depotFleet=[3,3,3]
     for i in range(6):
         bubblesToRemove=[]
         if i != 0:      
@@ -35,7 +35,7 @@ def bubbles_number_test(nodesTab,costMatrix,poly):
         save_result(routesPoints,charges,times,nodesTab.nbrDepots,nodesTab.nbrBubbles,bubbles)
         
         routes=build_routes_with_polylines(routesPoints,poly)
-        build_and_save_GeoJson(routes,routesPoints,nodesTab,'geo_D'+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
+        build_and_save_GeoJson(routes,routesPoints,nodesTab,'geo_D'+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles)+"_")
 
 def depots_number_test(nodesTab,costMatrix,poly):
     print("Begin Test with different number of depots")
@@ -73,8 +73,8 @@ def main3():
     
     print("costmatrix get complete")
 
-    #bubbles_number_test(nodesTab,costMatrix)
-    depots_number_test(nodesTab,costMatrix,poly)
+    bubbles_number_test(nodesTab,costMatrix,poly)
+    #depots_number_test(nodesTab,costMatrix,poly)
 
 if __name__ == "__main__":
     main3()

@@ -3,6 +3,7 @@ import pulp
 import itertools
 import sys
 from routing import *
+from testing import *
 
 def MDVRP_optimise_fleet(nodesTab,vehicle_count,costMatrix,nbrVehicleInDepot):
     nbrDepots = nodesTab.nbrDepots
@@ -222,6 +223,19 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
             if i != j:
                 problem+= z[i][j] <= pulp.lpSum((constant.Q-nodesTab.tab[i].charge)*x[i][j][d] for d in range(nbrDepots) )
 
+
+
+    for i in range(nbrBubbles):
+        for d in range(nbrDepots):
+            problem+=pulp.lpSum(x[i][d+nbrBubbles][h] if h != d else 0 for h in range(nbrDepots)) == 0
+        
+    for i in range(nbrBubbles):
+        for d in range(nbrDepots):
+            problem+=pulp.lpSum(x[d+nbrBubbles][i][h] if h != d else 0 for h in range(nbrDepots)) == 0
+
+
+
+
     if (enhanced == True):      
         #constraint 37
         for i in range(nbrBubbles):
@@ -257,7 +271,10 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
         #constraint 44
         problem+= (pulp.lpSum(nodesTab.tab[i].charge for i in range(nbrBubbles))) / (constant.Q) <= pulp.lpSum(x[d+nbrBubbles][i][d] 
                                                                                                             for i in range(nbrBubbles) 
+                               
                                                                                                             for d in range(nbrDepots))
+        
+
         #constraint vehicle in depot
         for d in range(nbrDepots):
             problem+= pulp.lpSum(x[d+nbrBubbles][i][d] for i in range(nbrBubbles)) <= nbrVehicleInDepot[d]
@@ -291,7 +308,7 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                     if i != j and pulp.value(x[i][j][d]) == 1:
                         edge.append((i,j))
                         
-
+        
         routes=[]
         charges=[]
         times=[]
@@ -303,6 +320,7 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                 route.append(nodesTab.tab[e[0]].id)
                 charges.append(pulp.value(z[e[0]][e[1]]))
                 time+= costMatrix.get_element(nodesTab.tab[e[0]].id,nodesTab.tab[e[1]].id)+ constant.SERVICE_TIME
+                
                 while(j != e[0]):
                     route.append(nodesTab.tab[j].id)
                     for e2 in edge:
@@ -310,6 +328,7 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
                             time+= costMatrix.get_element(nodesTab.tab[j].id,nodesTab.tab[e2[1]].id) + constant.SERVICE_TIME
 
                             j=e2[1]
+                           
                             break
                 times.append(time)
                 route.append(nodesTab.tab[e[0]].id)
@@ -338,26 +357,14 @@ def MDVRP_optimise(nodesTab,costMatrix,nbrVehicleInDepot,enhanced=False):
         plt.savefig("Graph_D"+str(nodesTab.nbrDepots)+"_B"+str(nodesTab.nbrBubbles))
         G.clear()
         plt.clf()
-        return routes,charges,times              
+        return routes,charges,times
+
+    return [],[],[]              
         
 
 
 def main4():
-    # nodesTab= NodesTab()
-    # nodesTab.add_bubble(Node(50.640971, 5.574936,0,70))#université20aout 0
-    # nodesTab.add_bubble(Node(50.689912, 5.569498,1,80))#maison 1
-    # nodesTab.add_bubble(Node(50.690295, 5.246443,2,85))#Warrem 2
-    # nodesTab.add_bubble(Node(50.658423, 5.087172,3,65))#Hannut 3
-    # nodesTab.add_bubble(Node(50.491995, 5.862504,4,60))#Spa 4
-    # nodesTab.add_bubble(Node(50.587739, 5.861940,5,75))#Vervier 5
-    # nodesTab.add_bubble(Node(50.426634, 6.190871,6,55))#Butgenbach 6
-    # nodesTab.add_bubble(Node(50.412811, 5.935814,7,45))#Stavelot 7
-
-    # nodesTab.add_depot(Node(50.419553, 6.117569,8,0))#waimes 8
-    # nodesTab.add_depot(Node(50.587781, 5.618887,9,0))#chaudfontaine 9
-    
-    
-    # costMatrix=get_cost_matrix_from_csv('csv/cost_matrix_old.csv')
+   
    
     
     nodesTab = build_nodesTab_from_csv('csv/nodes.csv')
@@ -368,13 +375,16 @@ def main4():
     
     print("costmatrix get complete") 
     depotFleet=[3,3,3]
+    #depotFleet=[6,6,6,3,3,3,3,3,3,3]
+    
+    
     print(nodesTab.nbrBubbles, nodesTab.nbrDepots)
-    #routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
-    routesPoints,a,b=MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=20,costMatrix=costMatrix,nbrVehicleInDepot=[3,3,3])
+    routesPoints,a,b=MDVRP_optimise(nodesTab=nodesTab,costMatrix=costMatrix,nbrVehicleInDepot=depotFleet,enhanced=True)
+    #routesPoints,a,b=MDVRP_optimise_fleet(nodesTab=nodesTab,vehicle_count=20,costMatrix=costMatrix,nbrVehicleInDepot=[3,3,3])
 
     routes=build_routes_with_polylines(routesPoints,poly)
-    build_and_save_GeoJson(routes,routesPoints,nodesTab,'F1_Form')
-
+    build_and_save_GeoJson(routes,routesPoints,nodesTab,'D3_B104L_')
+    save_result(routesPoints,a,b,nodesTab.nbrDepots,nodesTab.nbrBubbles,[0])
     
 if __name__ == "__main__":
     main4()
